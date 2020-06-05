@@ -114,7 +114,7 @@ class Component():
             return False
 
         # 'fixed' value must be the same for both parts
-        if self.isFixed() != other.isFixed():
+        if not self.prefs.mergeDNC and self.isFixed() != other.isFixed():
             return False
 
         if len(self.prefs.groups) == 0:
@@ -304,7 +304,7 @@ class Component():
         opts = check.lower().split(",")
 
         exclude = False
-        include = True
+        include = False
 
         for opt in opts:
             opt = opt.strip()
@@ -312,13 +312,12 @@ class Component():
             if opt in DNF:
                 exclude = True
                 break
-            
             # Options that start with '-' are explicitly removed from certain configurations
-            if opt.startswith("-") and str(opt[1:]) in [str(cfg) for cfg in self.prefs.pcbConfig]:
+            if opt.startswith("-") and opt[1:] in [str(cfg).lower() for cfg in self.prefs.pcbConfig]:
                 exclude = True
                 break
             if opt.startswith("+"):
-                include = include or opt[1:] in [str(cfg) for cfg in self.prefs.pcbConfig]
+                include = include or opt[1:] in [str(cfg).lower() for cfg in self.prefs.pcbConfig]
 
         return include and not exclude
 
@@ -329,16 +328,16 @@ class Component():
 
         # Check the value field first
         if self.getValue().lower() in DNC:
-            return False
+            return True
 
         # Empty is not fixed
         if check == "":
-            return True
+            return False
 
         opts = check.split(" ")
         for opt in opts:
             if opt.lower() in DNC:
-                return False
+                return True
 
         opts = check.split(",")
 
@@ -346,12 +345,12 @@ class Component():
 
         for opt in opts:
             # Options that start with '-' are explicitly removed from certain configurations
-            if opt.startswith('-') and opt[1:].lower() == self.prefs.pcbConfig.lower():
+            if str(opt).startswith('-') and str(opt[1:]).lower() in [str(cfg).lower() for cfg in self.prefs.pcbConfig]:
                 result = False
                 break
-            if opt.startswith("+"):
+            if str(opt).startswith("+"):
                 result = False
-                if opt[1:].lower() == self.prefs.pcbConfig.lower():
+                if str(opt[1:]).lower() in [str(cfg).lower() for cfg in self.prefs.pcbConfig]:
                     result = True
 
         # by default, part is not fixed
@@ -590,10 +589,15 @@ class ComponentGroup():
             self.fields[ColumnList.COL_REFERENCE] = self.getRefs()
 
         q = self.getCount()
-        self.fields[ColumnList.COL_GRP_QUANTITY] = "{n}{dnf}{dnc}".format(
-            n=q,
-            dnf=" (DNF)" if not self.isFitted() else "",
-            dnc=" (DNC)" if not self.isFixed() else "")
+        if self.prefs.mergeDNC:
+            self.fields[ColumnList.COL_GRP_QUANTITY] = "{n}{dnf}".format(
+                n=q,
+                dnf=" (DNF)" if not self.isFitted() else "")
+        else:
+            self.fields[ColumnList.COL_GRP_QUANTITY] = "{n}{dnf}{dnc}".format(
+                n=q,
+                dnf=" (DNF)" if not self.isFitted() else "",
+                dnc=" (DNC)" if self.isFixed() else "")
 
         self.fields[ColumnList.COL_GRP_BUILD_QUANTITY] = str(q * self.prefs.boards) if self.isFitted() else "0"
         self.fields[ColumnList.COL_VALUE] = self.components[0].getValue()

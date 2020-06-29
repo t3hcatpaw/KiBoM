@@ -290,16 +290,23 @@ class Component():
         # Check the value field first
         if self.getValue().lower() in DNF:
             return False
+        if self.getValue().lower() in DNC:
+            return True
 
         # Empty value means part is fitted
         if check == "":
             return True
 
         # Also support space separated list (simple cases)
+        fixed = False
         opts = check.split(" ")
         for opt in opts:
             if opt.lower() in DNF:
                 return False
+            if opt.lower() in DNC:
+                fixed = True
+        if(fixed):
+            return True
 
         opts = check.lower().split(",")
 
@@ -312,12 +319,16 @@ class Component():
             if opt in DNF:
                 exclude = True
                 break
+            # Any option containing a DNC is fitted if there's no DNF
+            if opt in DNC:
+                include = True
+            
             # Options that start with '-' are explicitly removed from certain configurations
-            if opt.startswith("-") and opt[1:] in [str(cfg).lower() for cfg in self.prefs.pcbConfig]:
+            if opt.startswith("-") and str(opt[1:]) in [str(cfg).lower() for cfg in self.prefs.pcbConfig]:
                 exclude = True
                 break
             if opt.startswith("+"):
-                include = include or opt[1:] in [str(cfg).lower() for cfg in self.prefs.pcbConfig]
+                include = include or str(opt[1:]) in [str(cfg).lower() for cfg in self.prefs.pcbConfig]
 
         return include and not exclude
 
@@ -345,10 +356,10 @@ class Component():
 
         for opt in opts:
             # Options that start with '-' are explicitly removed from certain configurations
-            if str(opt).startswith('-') and str(opt[1:]).lower() in [str(cfg).lower() for cfg in self.prefs.pcbConfig]:
+            if opt.startswith('-') and str(opt[1:]).lower() in [str(cfg).lower() for cfg in self.prefs.pcbConfig]:
                 result = False
                 break
-            if str(opt).startswith("+"):
+            if opt.startswith("+"):
                 result = False
                 if str(opt[1:]).lower() in [str(cfg).lower() for cfg in self.prefs.pcbConfig]:
                     result = True
